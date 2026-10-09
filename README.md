@@ -110,3 +110,7 @@ See [`guideline`](./guideline) for the full design spec (in Traditional Chinese)
 ## Tech stack
 
 Vite 5 · TypeScript 5 · three.js 0.169 · lil-gui · Vitest
+
+## License
+
+[MIT](./LICENSE) © Jason Kuan (jason9075)
