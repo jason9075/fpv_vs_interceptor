@@ -1,0 +1,544 @@
+:root {
+  --bg: #0b1220;
+  --panel: rgba(15, 23, 42, 0.82);
+  --panel-solid: #111a2c;
+  --border: rgba(148, 163, 184, 0.22);
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --roll: #ef4444;
+  --pitch: #22c55e;
+  --yaw: #3b82f6;
+  --thrust: #facc15;
+  --velocity: #22d3ee;
+  --gravity: #9ca3af;
+  --btn: rgba(51, 65, 85, 0.7);
+  --btn-on: #0ea5e9;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #e8eef5;
+  --panel: rgba(255, 255, 255, 0.86);
+  --panel-solid: #ffffff;
+  --border: rgba(51, 65, 85, 0.18);
+  --text: #0f172a;
+  --muted: #475569;
+  --accent: #0284c7;
+  --thrust: #ca8a04;
+  --velocity: #0891b2;
+  --gravity: #6b7280;
+  --btn: rgba(203, 213, 225, 0.8);
+  --btn-on: #0284c7;
+  --shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  overflow: hidden;
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100dvh;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: var(--btn);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover {
+  filter: brightness(1.15);
+}
+button.accent,
+button.primary {
+  background: var(--btn-on);
+  border-color: transparent;
+  color: #fff;
+}
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Top bar ─────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-solid);
+  z-index: 5;
+}
+.brand h1 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+.brand h1 span {
+  color: var(--muted);
+  font-weight: 400;
+}
+.tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.seg[hidden] {
+  display: none;
+}
+.seg button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.seg button + button {
+  border-left: 1px solid var(--border);
+}
+.seg button[aria-pressed='true'] {
+  background: var(--btn-on);
+  color: #fff;
+}
+
+/* ── Stage ───────────────────────────────────────────────── */
+#stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+#gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.views {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+#stage[data-layout='single'] .views {
+  grid-template-columns: 1fr;
+}
+#stage[data-layout='single'][data-single='fpv'] .view[data-drone='interceptor'],
+#stage[data-layout='single'][data-single='interceptor'] .view[data-drone='fpv'] {
+  display: none;
+}
+.view {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  touch-action: none;
+}
+.view + .view {
+  border-left: 2px solid var(--border);
+}
+
+.hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  max-width: calc(100% - 20px);
+}
+.hud-title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.hud-title b {
+  font-size: 14px;
+}
+.hud-title span {
+  color: var(--muted);
+}
+.hud table {
+  border-collapse: collapse;
+}
+.hud th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 1px 10px 1px 0;
+  white-space: nowrap;
+}
+.hud td {
+  padding: 1px 8px 1px 0;
+  white-space: nowrap;
+}
+.hud .vel {
+  color: var(--velocity);
+  font-weight: 600;
+}
+.hud .thr {
+  color: var(--thrust);
+}
+
+.explain {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  pointer-events: none;
+  font-size: 13.5px;
+}
+.explain em {
+  font-style: normal;
+  color: var(--thrust);
+}
+
+.ax-roll {
+  color: var(--roll);
+}
+.ax-pitch {
+  color: var(--pitch);
+}
+.ax-yaw {
+  color: var(--yaw);
+}
+.ax-throttle {
+  color: var(--thrust);
+}
+
+#paused-badge {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--thrust);
+  color: #111;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+#gui-host[hidden],
+#paused-badge[hidden] {
+  display: none;
+}
+
+#gui-host {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  max-height: calc(100% - 20px);
+  overflow: auto;
+}
+
+/* ── Footer：搖桿 + 輸入量 ───────────────────────────────── */
+.sticks {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--panel-solid);
+}
+.stick {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  user-select: none;
+}
+.stick-pad {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 14px;
+  background: var(--btn);
+  border: 1px solid var(--border);
+  touch-action: none;
+  cursor: grab;
+}
+.stick-cross {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(var(--border), var(--border)) center / 1px 100% no-repeat,
+    linear-gradient(var(--border), var(--border)) center / 100% 1px no-repeat;
+}
+.stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 35% 35%, #f8fafc, #94a3b8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+.stick-arrow {
+  position: absolute;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.8;
+  pointer-events: none;
+}
+.stick-arrow.top {
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.stick-arrow.bottom {
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.stick-arrow.left {
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.stick-arrow.right {
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.stick-arrow[data-axis='throttle'] {
+  color: var(--thrust);
+}
+.stick-arrow[data-axis='pitch'] {
+  color: var(--pitch);
+}
+.stick-arrow[data-axis='roll'] {
+  color: var(--roll);
+}
+.stick-arrow[data-axis='yaw'] {
+  color: var(--yaw);
+}
+.stick-caption {
+  display: grid;
+  justify-items: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.stick-caption span {
+  opacity: 0.75;
+}
+.stick.active-x [data-dir='x'],
+.stick.active-y [data-dir='y'] {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.center-panel {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  min-width: 0;
+}
+#input-bars {
+  display: grid;
+  gap: 3px;
+  width: min(420px, 100%);
+}
+.ibar {
+  display: grid;
+  grid-template-columns: 64px 1fr 48px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ibar .val {
+  text-align: right;
+  color: var(--muted);
+}
+.track {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--btn);
+  overflow: hidden;
+}
+.track::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--muted);
+}
+.track i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.ibar[data-axis='throttle'] .track i {
+  background: var(--thrust);
+}
+.ibar[data-axis='yaw'] .track i {
+  background: var(--yaw);
+}
+.ibar[data-axis='pitch'] .track i {
+  background: var(--pitch);
+}
+.ibar[data-axis='roll'] .track i {
+  background: var(--roll);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+.legend i {
+  display: inline-block;
+  width: 14px;
+  height: 4px;
+  margin-right: 5px;
+  vertical-align: middle;
+  border-radius: 2px;
+  background: var(--c);
+}
+.legend i.grid {
+  height: 10px;
+  width: 10px;
+  border: 1px solid var(--muted);
+  background: none;
+}
+.keys {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  text-align: center;
+}
+kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 4px;
+  margin: 0 1px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  font: 11px ui-monospace, monospace;
+  text-align: center;
+}
+
+/* ── 手機：viewport 上下堆疊、搖桿在底部左右 ─────────────── */
+@media (max-width: 768px) {
+  .topbar {
+    padding: 6px 16px;
+  }
+  .tagline {
+    display: none;
+  }
+  .controls {
+    gap: 4px;
+  }
+  .controls button {
+    padding: 4px 7px;
+    font-size: 12.5px;
+  }
+  .views {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+  #stage[data-layout='single'] .views {
+    grid-template-rows: 1fr;
+  }
+  .view + .view {
+    border-left: 0;
+    border-top: 2px solid var(--border);
+  }
+  .hud {
+    font-size: 10.5px;
+    padding: 5px 7px;
+  }
+  .hud tr:nth-child(n + 4) {
+    display: none;
+  }
+  .explain {
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+  .sticks {
+    gap: 8px;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+  }
+  .stick-pad {
+    width: 104px;
+    height: 104px;
+  }
+  .stick-caption {
+    font-size: 10.5px;
+  }
+  .legend,
+  .keys {
+    display: none;
+  }
+  .ibar {
+    grid-template-columns: 1fr;
+    gap: 1px;
+  }
+  .ibar .val {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar i {
+    transition: none;
+  }
+}

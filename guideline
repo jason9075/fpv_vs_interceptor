@@ -1,0 +1,330 @@
+# FPV Drone vs. Interceptor：Yaw / Pitch / Roll 互動教學網站 Guideline
+
+> 目標：用 three.js 建一個互動網頁，讓使用者**推動遙控器搖桿**，即時看到
+> 一般 FPV 穿越機（quadcopter）與攔截機（interceptor）在 yaw / pitch / roll
+> 上的差別，以及每個搖桿輸入會產生**哪個方向的速度**。
+
+---
+
+## 1. 名詞與前提
+
+### 1.1 兩種機型的定義
+
+| | FPV Drone（穿越機） | Interceptor（攔截機） |
+|---|---|---|
+| 機體外型 | X 型四軸，機身水平 | 子彈／飛鏢型機身，四顆馬達裝在尾部，機身縱軸 = 推力軸 |
+| 推力方向 | 沿機體 **上方 (+Up)** | 沿機體 **機頭方向 (+Forward)** |
+| 前進方式 | 傾斜整個機身，讓推力的「水平分量」推動前進 | 機頭直接對準要去的方向，推力直接推機頭方向（類似火箭／tailsitter） |
+| 鏡頭方向 | 機身前方（通常有 20–40° 上仰角） | 機頭正前方（與推力軸同向） |
+| 飛行手感 | 像直升機：先傾斜、再加速 | 像飛機／飛彈：指哪飛哪 |
+
+> 本網站中的 interceptor 以「推力軸 = 機頭」的 tailsitter 式攔截機為模型
+> （例如機身細長、馬達朝後的高速攔截無人機）。若之後要支援固定翼攔截機，
+> 只需在 §4 物理模型中加入升力項即可。
+
+### 1.2 搖桿配置（預設 Mode 2）
+
+| 搖桿 | 上下 | 左右 |
+|---|---|---|
+| 左搖桿 | Throttle 油門 | Yaw 偏航 |
+| 右搖桿 | Pitch 俯仰 | Roll 滾轉 |
+
+- 飛行模式採 **Acro（Rate mode）**：搖桿量 = 角速度，放開搖桿姿態維持不變（不自動回正）。
+- 另提供 **Angle mode** 開關：搖桿量 = 目標角度，放開自動回水平，方便新手理解。
+- 設定面板可切換 Mode 1 / Mode 2。
+
+### 1.3 座標系（three.js 慣例）
+
+- 世界座標：**Y 向上**，-Z 為初始前方，+X 為右方。
+- 機體座標（以 FPV drone 為準）：`forward = -Z`、`right = +X`、`up = +Y`。
+- 顏色固定：**Roll 軸 = 紅**、**Pitch 軸 = 綠**、**Yaw 軸 = 藍**，兩種機型共用同一套顏色，讓使用者一眼看出「同一個搖桿，在兩台機上轉的是哪一根軸」。
+
+---
+
+## 2. 核心觀念：同一個搖桿，兩台機的反應
+
+### 2.1 旋轉軸對照
+
+| 搖桿 | FPV Drone 旋轉軸 | FPV 由什麼產生力矩 | Interceptor 旋轉軸 | Interceptor 由什麼產生力矩 |
+|---|---|---|---|---|
+| Pitch | 繞機體 right 軸（機頭上下） | 前後馬達轉速差 | 繞機體 right 軸（機頭上下） | 上下兩組馬達推力差 |
+| Roll | 繞機體 forward 軸（左右翻滾） | 左右馬達轉速差 | 繞機頭軸（沿推力軸自轉） | **馬達反扭力差**（相當於四軸的 yaw） |
+| Yaw | 繞機體 up 軸（原地轉向） | **馬達反扭力差** | 繞機體 up 軸（機頭左右） | 左右兩組馬達推力差（相當於四軸的 roll） |
+
+重點：
+
+1. Interceptor 的 roll 與 yaw，在馬達層面**剛好與四軸對調**。
+2. 靠反扭力產生的那一軸（FPV 的 yaw、Interceptor 的 roll）**角速度上限較低、反應較慢**；網站需用不同的 max rate 與響應時間常數表現出來（見 §4.3）。
+
+### 2.2 搖桿 → 速度方向（本網站最重要的教學內容）
+
+#### FPV Drone
+
+| 輸入 | 姿態變化 | 產生的速度 |
+|---|---|---|
+| Throttle ↑ | 無 | 沿機體 up 方向加速；機身水平時 = 往上爬升 |
+| Pitch ↑（推桿） | 機頭朝下傾斜 θ | 推力水平分量 → **往前**（機頭水平投影方向）加速；若不補油門會掉高度 |
+| Pitch ↓（拉桿） | 機頭朝上 | **往後**加速／減速 |
+| Roll → | 機身向右傾 | **向右平移**（側滑），機頭方向不變 |
+| Yaw → | 機頭向右轉 | **本身不產生速度**，只改變之後 pitch 的前進方向；已有的速度會因慣性繼續沿原方向滑行（drift） |
+
+穩態公式（定高前進）：
+
+- 定高所需推力：`T = m·g / cos θ`
+- 水平加速度：`a = g · tan θ`
+- 考慮二次阻力 `F_drag = k·v²` 時的極速：`v_max = sqrt(m·g·tan θ / k)`
+
+→ 「傾斜越多，跑越快」，FPV 的**速度大小由傾角決定**，油門主要負責高度。
+
+#### Interceptor
+
+| 輸入 | 姿態變化 | 產生的速度 |
+|---|---|---|
+| Throttle ↑ | 無 | **沿機頭方向**加速（不是往上） |
+| Pitch ↑（推桿） | 機頭朝下 | 速度向量逐漸轉向下方 → **俯衝** |
+| Pitch ↓（拉桿） | 機頭朝上 | 速度向量轉向上方 → **爬升** |
+| Roll → | 繞機頭軸自轉 | **不直接改變速度方向**，只旋轉「哪邊是上」；用來把 pitch 的轉彎平面轉到目標方向（bank-and-pull） |
+| Yaw → | 機頭向右 | 速度向量轉向右方 → **向右轉彎** |
+
+穩態公式（沿飛行路徑角 γ 直線飛行）：
+
+- 沿機頭方向：`m·dv/dt = T − m·g·sin γ − k·v²`
+- 極速：`v_max = sqrt((T − m·g·sin γ) / k)`
+- 機身無升力時，速度方向追隨機頭方向的速率取決於推力與阻力（見 §4.2 的 `alignment` 項）；高速時機頭與速度向量之間會出現明顯的**側滑角**，網站要畫出來。
+
+→ Interceptor 的**速度大小由油門決定**，方向由機頭決定；水平懸停時必須機頭朝上（γ ≈ 90°）。
+
+### 2.3 一句話總結（放在網站首屏）
+
+> **FPV：推力朝上，傾斜去前進。Interceptor：推力朝前，指哪飛哪。**
+> 同樣推右搖桿往右，FPV 是側移，Interceptor 只是自轉；要讓 Interceptor 往右，得用 yaw 或先 roll 再拉 pitch。
+
+---
+
+## 3. 網站功能規格
+
+### 3.1 版面
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  標題 / 一句話總結 / 模式切換 [並排] [單機]                    │
+├────────────────────────────┬────────────────────────────────┤
+│   FPV Drone 3D viewport    │   Interceptor 3D viewport      │
+│   (第三人稱 / FPV 鏡頭)     │   (第三人稱 / FPV 鏡頭)         │
+│   HUD: 姿態 / 速度         │   HUD: 姿態 / 速度              │
+├────────────────────────────┴────────────────────────────────┤
+│  [左搖桿 Throttle/Yaw]   當前輸入說明文字   [右搖桿 Pitch/Roll] │
+└─────────────────────────────────────────────────────────────┘
+```
+
+- **並排模式（預設）**：同一組搖桿輸入**同時**驅動兩台機，最能直觀比較差異。
+- **單機模式**：單一大畫面，可切換機型。
+- 手機寬度（< 768px）：兩個 viewport 上下堆疊，搖桿固定在畫面底部，左右各一。
+
+### 3.2 輸入方式
+
+1. **虛擬搖桿**（必做）：滑鼠拖曳／觸控；左搖桿 throttle 不自動回中，其他軸放開自動回中。
+2. **鍵盤**：`W/S` throttle、`A/D` yaw、`↑/↓` pitch、`←/→` roll；按住期間以 ramp 方式漸增到滿舵。
+3. **Gamepad API**（加分）：支援實體遙控器透過 USB 以 joystick 模式接入，提供軸對應與反向設定。
+4. 所有輸入正規化到 `[-1, 1]`（throttle 為 `[0, 1]`），套 Betaflight 風格的 rate / expo 曲線。
+
+### 3.3 3D 視覺元素
+
+| 元素 | 說明 |
+|---|---|
+| 機體模型 | 低多邊形自製幾何即可（BoxGeometry / CylinderGeometry 組合），螺旋槳依油門轉速旋轉 |
+| 機體座標軸 gizmo | 紅/綠/藍三軸箭頭，**目前被驅動的軸高亮並顯示旋轉弧形箭頭** |
+| 推力向量 | 黃色箭頭，長度 ∝ 推力 |
+| 速度向量 | 青色箭頭，長度 ∝ 速度；另以淡色畫出水平分量與垂直分量 |
+| 重力向量 | 灰色向下箭頭（可在設定關閉） |
+| 軌跡 | 最近 N 秒的路徑線（`THREE.Line` + 環形 buffer），顏色依速度漸層 |
+| 地面 | GridHelper + 每 10m 一條距離標記，提供速度感 |
+| 參考物 | 幾個柱子／門框，讓使用者練習穿越與比較轉彎半徑 |
+
+### 3.4 HUD（每個 viewport 各一）
+
+- 姿態：roll / pitch / yaw 角度（度）
+- 角速度：p / q / r（deg/s）
+- 速度：總速 km/h；機體座標分量（forward / right / up）與世界座標分量（水平 / 垂直）
+- Interceptor 額外顯示：**側滑角**（機頭方向 vs 速度方向夾角）、飛行路徑角 γ
+- 文字提示列：依當前輸入即時描述，例如
+  - FPV：「推 Pitch → 機身前傾 25° → 向前加速 8.2 m/s²，高度下降中（需加油門）」
+  - Interceptor：「推 Roll → 繞機頭自轉，速度方向不變」
+
+### 3.5 鏡頭
+
+- 第三人稱追蹤（預設）：`camera` 位於機體後上方，用 lerp 平滑跟隨，**不跟著 roll 旋轉**，方便看出姿態。
+- FPV 鏡頭：綁在機體上，FPV drone 帶可調上仰角（預設 30°）；切換後可直接理解「為什麼 FPV 飛手看到的地平線會傾斜」。
+- 自由軌道鏡頭：`OrbitControls`，暫停時使用。
+
+---
+
+## 4. 物理模型
+
+刻意簡化，**重點是方向正確、手感可理解**，不是精準模擬。
+
+### 4.1 狀態
+
+```ts
+interface DroneState {
+  position: THREE.Vector3;     // world, m
+  velocity: THREE.Vector3;     // world, m/s
+  attitude: THREE.Quaternion;  // body → world
+  angularVel: THREE.Vector3;   // body frame, rad/s (x=pitch, y=yaw, z=roll，依 three.js 軸)
+}
+```
+
+### 4.2 每一步更新（固定 timestep，建議 `dt = 1/240 s`，每幀跑多個 substep）
+
+```
+1. 讀取輸入 → 經 rate/expo 曲線 → 目標角速度 ω_target（body frame）
+2. ω += (ω_target − ω) · (1 − exp(−dt / τ_axis))      // 一階響應，τ 依軸不同
+3. attitude = attitude ⊗ quat(ω · dt)，然後 normalize
+4. thrustDir = (FPV ? bodyUp : bodyForward) 轉到世界座標
+5. F = thrustDir · T(throttle) + m·g·(0,−1,0) − k · |v| · v
+6. (Interceptor 選配) 速度對齊項：
+   v_perp = v 垂直於 bodyForward 的分量
+   F += −c_align · v_perp        // 模擬細長機身的側向阻力，讓速度追隨機頭
+7. velocity += F / m · dt
+8. position += velocity · dt
+9. 地面碰撞：y < 0 時 y = 0、velocity.y = max(0, velocity.y)，並施加摩擦
+```
+
+### 4.3 預設參數
+
+| 參數 | FPV Drone | Interceptor |
+|---|---|---|
+| 質量 m | 0.65 kg | 0.9 kg |
+| 推重比 (T_max / m·g) | 6 | 8 |
+| 二次阻力 k | 0.02 | 0.006（細長機身） |
+| 側向對齊 c_align | 0 | 1.2 |
+| Pitch max rate / τ | 670°/s / 0.03 s | 400°/s / 0.04 s |
+| Roll max rate / τ | 670°/s / 0.03 s | **250°/s / 0.08 s**（反扭力） |
+| Yaw max rate / τ | **400°/s / 0.08 s**（反扭力） | 400°/s / 0.04 s |
+
+所有參數放在一個 `config.ts`，並在網頁上提供 dev 面板（lil-gui）即時調整。
+
+### 4.4 Angle mode
+
+- 目標角度 = 搖桿量 × 最大角度（FPV 55°）。
+- `ω_target = Kp · (angle_target − angle_current)`，只作用於 pitch / roll。
+- Interceptor 的 angle mode 以「定高巡航配平姿態」（機頭上仰約 10°、機翼水平）為 0°，放開搖桿回到巡航。
+
+---
+
+## 5. 技術架構
+
+### 5.1 技術選型
+
+- **Vite + TypeScript**，純 three.js（不使用 React，降低複雜度）。
+- `three`（鎖定確切版本 `three@0.169.0`），使用 `OrbitControls`；軌跡目前用 `THREE.Line` + vertex color（之後可換 `Line2` 做粗線）。
+- `lil-gui`：參數調整面板。
+- 不需要後端，`vite build` 後為純靜態網站。
+
+### 5.2 目錄結構
+
+```
+fpv_interceptor/
+├── guideline.md
+├── index.html
+├── package.json
+├── src/
+│   ├── main.ts               # 入口：建立 app、啟動 loop
+│   ├── config.ts             # §4.3 所有參數
+│   ├── input/
+│   │   ├── InputState.ts     # 正規化後的 {throttle, yaw, pitch, roll}
+│   │   ├── VirtualSticks.ts  # DOM/Canvas 虛擬搖桿
+│   │   ├── Keyboard.ts
+│   │   ├── Gamepad.ts
+│   │   └── rates.ts          # rate / expo 曲線
+│   ├── physics/
+│   │   ├── DroneModel.ts     # 共用狀態與積分
+│   │   ├── fpvDynamics.ts    # 推力 = bodyUp
+│   │   └── interceptorDynamics.ts  # 推力 = bodyForward + 對齊項
+│   ├── scene/
+│   │   ├── World.ts          # 地面、光源、參考物
+│   │   ├── FpvMesh.ts
+│   │   ├── InterceptorMesh.ts
+│   │   ├── VectorArrows.ts   # 推力/速度/重力箭頭
+│   │   ├── AxisGizmo.ts      # RGB 軸 + 旋轉弧形高亮
+│   │   ├── Trail.ts
+│   │   └── CameraRig.ts      # 追蹤 / FPV / 軌道
+│   ├── ui/
+│   │   ├── Hud.ts
+│   │   ├── Explainer.ts      # 依輸入產生說明文字（§3.4）
+│   │   └── InputBars.ts      # 中央輸入量條
+│   └── styles.css
+└── public/
+```
+
+### 5.3 渲染
+
+- 單一 `WebGLRenderer`，並排模式用 `renderer.setViewport` + `setScissor` 分割畫面，兩台機在**各自的 scene**（避免互相遮擋），共用地面幾何。
+- 物理與渲染分離：`requestAnimationFrame` 中累積時間，以固定 `dt` 跑物理 substep，再渲染一次。
+- 分頁隱藏時（`visibilitychange`）暫停模擬，回來時不補跑累積時間。
+
+### 5.4 程式原則
+
+- 物理模組不依賴 DOM，可單獨寫單元測試（Vitest）。
+- 兩種機型只在「推力方向」「每軸 rate/τ」「對齊項」上不同，其餘共用；差異集中在 `fpvDynamics.ts` / `interceptorDynamics.ts`。
+- 所有角度在內部用弧度，只在 HUD 顯示時轉成度。
+
+---
+
+## 6. 視覺與 UX 規範
+
+- 3D 場景固定為白天外景（漸層天空、草地、樹林、遠山、雲）；UI 面板預設淺色，可切換深色主題；顏色用 CSS 變數定義。
+- 軸顏色全站一致：Roll 紅 `#ef4444`、Pitch 綠 `#22c55e`、Yaw 藍 `#3b82f6`；推力黃 `#facc15`、速度青 `#22d3ee`。
+- 虛擬搖桿上的軸標籤使用同樣顏色，讓「推哪個方向 → 哪根軸亮」形成直接連結。
+- 文字說明使用繁體中文，術語第一次出現時附英文（例：俯仰 Pitch）。
+- 一鍵 **Reset**（`R` 鍵）把兩台機放回起點懸停狀態。
+- 尊重 `prefers-reduced-motion`：關閉鏡頭晃動與螺旋槳動畫。
+
+---
+
+## 7. 驗收標準
+
+1. 並排模式下，單獨推每一個搖桿，兩台機的速度方向符合 §2.2 表格。
+2. FPV 推 pitch 不補油門會掉高度；Interceptor 只推油門會沿機頭方向前進。
+3. FPV 只推 yaw 時，原有速度沿原方向持續 drift，速度箭頭與機頭方向分離。
+4. Interceptor roll 角速度明顯慢於 FPV roll；FPV yaw 明顯慢於 Interceptor yaw。
+5. 桌機 Chrome / Firefox / Safari 維持 60 FPS；手機寬度可完整操作虛擬搖桿，無橫向捲動。
+6. 物理模組有單元測試覆蓋：懸停平衡、定高前傾的 `a = g·tan θ`、極速公式。
+
+---
+
+## 8. 開發里程碑
+
+1. **M1 – 骨架**：Vite + three.js 場景、地面、單台 FPV 方塊、鍵盤輸入、acro 物理。
+2. **M2 – 雙機並排**：Interceptor 物理、scissor 分割畫面、推力/速度箭頭、軸 gizmo。
+3. **M3 – 輸入與 HUD**：虛擬搖桿、Gamepad、rate/expo、HUD、即時說明文字。
+4. **M4 – 模式**：Angle mode、鏡頭切換。
+5. **M5 – 打磨**：模型細節、軌跡、手機版版面、參數面板、測試與部署（GitHub Pages / Vercel）。
+
+---
+
+## 9. 實作狀態與補充決策（v0.1）
+
+已完成 M1–M4 與 M5 的大部分（手機版面、參數面板、測試）。執行方式：
+
+```bash
+npm install
+npm run dev      # 開發伺服器
+npm test         # 物理單元測試（Vitest）
+npm run build    # 型別檢查 + 靜態輸出到 dist/
+```
+
+實作時補上的決策（guideline 原本沒寫死的部分）：
+
+| 項目 | 決定 | 原因 |
+|---|---|---|
+| 油門曲線 | **搖桿中點 = 懸停推力 (T = m·g)**，0→中點線性到 1×mg，中點→頂線性到 TWR×mg | 兩台機共用同一根油門，都從平衡狀態出發，差異才看得清楚 |
+| Interceptor 出生狀態 | 以**定高巡航配平**開始（`solveCruiseTrim`：約機頭上仰 10°、35 m/s） | 若從機頭朝上懸停開始，「只推油門」兩台都往上，看不出差異 |
+| c_align | 0.4 → **1.2** | 速度追隨機頭的時間常數 m/c 從 2.3 s 縮到 0.75 s，「指哪飛哪」才明顯 |
+| 追蹤鏡頭 | 斜後方 30–35°（`chaseSideDeg`） | 正後方看時，沿機頭的推力／速度箭頭會被透視壓扁 |
+| Interceptor FPV 鏡頭 | 相對機體 -10° | 抵銷巡航時的機頭上仰 |
+| 鍵盤 | 約 0.67 s 漸增到滿舵 | 輕點只小幅打桿，避免 670°/s 一下就翻過去 |
+
+已移除：教學關卡（只保留自由飛行模式）。
+
+已知未做：Line2 粗線軌跡、柱子碰撞、固定翼攔截機（需加升力項）。

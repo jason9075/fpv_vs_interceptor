@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="互動比較 FPV 穿越機與攔截機的 yaw / pitch / roll，以及每個搖桿產生的速度方向" />
+    <title>FPV vs Interceptor</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%2338bdf8' stroke-width='3'%3E%3Cpath d='M6 6l20 20M26 6L6 26'/%3E%3Ccircle cx='6' cy='6' r='4'/%3E%3Ccircle cx='26' cy='6' r='4'/%3E%3Ccircle cx='6' cy='26' r='4'/%3E%3Ccircle cx='26' cy='26' r='4'/%3E%3C/g%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <h1>FPV <span>vs</span> Interceptor</h1>
+        <p class="tagline">FPV：推力朝上，傾斜去前進。Interceptor：推力朝前，指哪飛哪。</p>
+      </div>
+      <nav class="controls" aria-label="顯示與飛行設定">
+        <div class="seg" data-setting="layout" role="group" aria-label="版面">
+          <button data-value="split">並排</button><button data-value="single">單機</button>
+        </div>
+        <div class="seg" data-setting="single" role="group" aria-label="機型">
+          <button data-value="fpv">FPV</button><button data-value="interceptor">Interceptor</button>
+        </div>
+        <div class="seg" data-setting="camMode" role="group" aria-label="鏡頭">
+          <button data-value="chase">追蹤</button><button data-value="fpv">FPV 鏡頭</button><button data-value="orbit">軌道</button>
+        </div>
+        <div class="seg" data-setting="angleMode" role="group" aria-label="飛行模式">
+          <button data-value="false">Acro</button><button data-value="true">Angle</button>
+        </div>
+        <div class="seg" data-setting="stickMode" role="group" aria-label="搖桿模式">
+          <button data-value="2">Mode 2</button><button data-value="1">Mode 1</button>
+        </div>
+        <button id="btn-reset" title="R">重設</button>
+        <button id="btn-pause" title="P">暫停</button>
+        <button id="btn-gui">參數</button>
+        <button id="btn-theme" aria-label="切換主題">◐</button>
+      </nav>
+    </header>
+
+    <main id="stage">
+      <canvas id="gl"></canvas>
+      <div class="views">
+        <section class="view" data-drone="fpv"></section>
+        <section class="view" data-drone="interceptor"></section>
+      </div>
+      <div id="gui-host" hidden></div>
+      <div id="paused-badge" hidden>暫停中 · 可用軌道鏡頭查看</div>
+    </main>
+
+    <footer class="sticks">
+      <div class="stick" id="stick-left"></div>
+      <div class="center-panel">
+        <div id="input-bars"></div>
+        <ul class="legend">
+          <li><i style="--c: var(--thrust)"></i>推力</li>
+          <li><i style="--c: var(--velocity)"></i>速度（淡色：水平 / 垂直分量）</li>
+          <li><i style="--c: var(--gravity)"></i>重力 m·g</li>
+          <li><i class="grid"></i>格線 10 m</li>
+        </ul>
+        <p class="keys">
+          <kbd>W</kbd><kbd>S</kbd> 油門 · <kbd>A</kbd><kbd>D</kbd> Yaw · <kbd>↑</kbd><kbd>↓</kbd> Pitch ·
+          <kbd>←</kbd><kbd>→</kbd> Roll · <kbd>R</kbd> 重設 · <kbd>P</kbd> 暫停 · <kbd>C</kbd> 鏡頭
+          <span id="pad-status"></span>
+        </p>
+      </div>
+      <div class="stick" id="stick-right"></div>
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
