@@ -1,5 +1,7 @@
 # FPV vs Interceptor
 
+**Live demo:** https://jason9075.github.io/fpv_vs_interceptor/
+
 An interactive three.js site that compares how an **FPV quadcopter** and a **tailsitter-style interceptor drone** respond to the same stick inputs: which axis each stick rotates, and which direction of velocity it produces.
 
 > **FPV: thrust points up, so you tilt to move. Interceptor: thrust points along the nose, so it goes where it points.**
@@ -72,7 +74,7 @@ just dev        # or: npm install && npm run dev
 | `just ci` | Type check, test, and build |
 | `just clean` | Remove `dist/` |
 
-The build is a fully static site (`base: './'`), so you can deploy `dist/` to GitHub Pages, Vercel, or any static host.
+The build is a fully static site (`base: './'`). Every push to `main` runs tests, builds and deploys to GitHub Pages via `.github/workflows/deploy.yml` (repo Settings → Pages → Source: **GitHub Actions**).
 
 ## Physics model
 
